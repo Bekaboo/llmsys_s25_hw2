@@ -192,6 +192,11 @@ class Tanh(Function):
                 Tensor containing the element-wise tanh of a.
         """
         ### BEGIN YOUR SOLUTION
+        # Call hierarchy:
+        # 1. a.f.tanh_map(a)
+        # 2. CudaKernelOps.map(operators.tanh)  # cuda_kernel_ops.py
+        # 3. fn_map[operators.tanh] = 18  # cuda_kernel_ops.py, map to TANH constant number in combine.cu
+        # 4. lib.tensorMap()  # Calls CUDA kernel
         out = a.f.tanh_map(a)
         ctx.save_for_backward(out)
         return out
