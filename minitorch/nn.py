@@ -246,7 +246,9 @@ def logsumexp(input: Tensor, dim: int) -> Tensor:
             NOTE: minitorch functions/tensor functions typically keep dimensions if you provide a dimensions.
     """
     ### BEGIN YOUR SOLUTION
-    raise NotImplementedError
+    # LSE(x1, x2, ... xn) = x_max + log(exp(x1 - x_max) + ... + expr(xn - x_max))
+    max_val = max(input, dim)
+    return max_val + (input - max_val).exp().sum(dim=dim).log()
     ### END YOUR SOLUTION
 
 
