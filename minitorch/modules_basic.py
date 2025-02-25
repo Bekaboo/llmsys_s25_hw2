@@ -5,15 +5,17 @@ Sequential
 Embedding
 
 """
+from typing import Any, Dict, Optional, Sequence, Tuple
+
 import numpy as np
 
 from .module import Module, Parameter
-from .tensor_functions import (zeros, ones, rand, tensor, tensor_from_numpy, zeros_tensor_from_numpy, ones_tensor_from_numpy)
 from .nn import one_hot
-from .tensor_ops import TensorBackend
 from .tensor import Tensor
-
-from typing import Any, Dict, Optional, Sequence, Tuple
+from .tensor_functions import (ones, ones_tensor_from_numpy, rand, tensor,
+                               tensor_from_numpy, zeros,
+                               zeros_tensor_from_numpy)
+from .tensor_ops import TensorBackend
 
 
 class Embedding(Module):
@@ -91,7 +93,11 @@ class Linear(Module):
         """
         self.out_size = out_size
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError
+        self.in_size = in_size
+        self.backend = backend
+        scale = 1.0 / np.sqrt(in_size)
+        self.weights = Parameter((rand((in_size, out_size,), backend=backend) * 2 * scale) - scale)
+        self.bias = Parameter((rand((out_size,), backend=backend) * 2 * scale - scale) if bias else None)
         ### END YOUR SOLUTION
 
     def forward(self, x: Tensor):
@@ -103,9 +109,10 @@ class Linear(Module):
         Returns:
             output : Tensor of shape (n, out_size)
         """
-        batch, in_size = x.shape
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError
+        out = x @ self.weights.value
+        if self.bias is not None:
+            out += self.bias.value
         ### END YOUR SOLUTION
 
 
