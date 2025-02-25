@@ -96,8 +96,25 @@ class Linear(Module):
         self.in_size = in_size
         self.backend = backend
         scale = 1.0 / np.sqrt(in_size)
-        self.weights = Parameter((rand((in_size, out_size,), backend=backend) * 2 * scale) - scale)
-        self.bias = Parameter((rand((out_size,), backend=backend) * 2 * scale - scale) if bias else None)
+        self.weights = Parameter(
+            (
+                rand(
+                    (
+                        in_size,
+                        out_size,
+                    ),
+                    backend=backend,
+                )
+                * 2
+                * scale
+            )
+            - scale
+        )
+        self.bias = Parameter(
+            (rand((out_size,), backend=backend) * 2 * scale - scale)
+            if bias
+            else zeros((out_size,), backend=backend)
+        )
         ### END YOUR SOLUTION
 
     def forward(self, x: Tensor):
@@ -110,9 +127,7 @@ class Linear(Module):
             output : Tensor of shape (n, out_size)
         """
         ### BEGIN YOUR SOLUTION
-        out = x @ self.weights.value
-        if self.bias is not None:
-            out += self.bias.value
+        return x @ self.weights.value + self.bias.value
         ### END YOUR SOLUTION
 
 
