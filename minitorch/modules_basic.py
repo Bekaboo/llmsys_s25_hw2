@@ -29,13 +29,14 @@ class Embedding(Module):
             embedding_dim : The size of each embedding vector
 
         Attributes:
-            weight : The learnable weights of shape (num_embeddings, embedding_dim) initialized from N(0, 1).
+            weights : The learnable weights of shape (num_embeddings, embedding_dim) initialized from N(0, 1).
         """
         self.backend = backend
         self.num_embeddings = num_embeddings # Vocab size
         self.embedding_dim  = embedding_dim  # Embedding Dimension
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError
+        rand_data = np.random.random((num_embeddings, embedding_dim)).astype(np.float32)
+        self.weights = Parameter(tensor_from_numpy(rand_data, backend=backend))
         ### END YOUR SOLUTION
     
     def forward(self, x: Tensor):
@@ -49,7 +50,8 @@ class Embedding(Module):
         """
         bs, seq_len = x.shape
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError
+        one_hot_embedding = one_hot(x, self.num_embeddings).view(1, bs * seq_len, self.num_embeddings)
+        return (one_hot_embedding @ self.weights.value).view(bs, seq_len, self.embedding_dim)
         ### END YOUR SOLUTION
 
     
