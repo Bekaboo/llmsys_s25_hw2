@@ -73,7 +73,11 @@ class Dropout(Module):
             output : Tensor of shape (*)
         """
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError
+        if not self.training or self.p_dropout == 0:
+            return x
+
+        mask = tensor_from_numpy(np.random.binomial(1, 1-self.p_dropout, x.shape))
+        return  (x * mask) / (1 - self.p_dropout)
         ### END YOUR SOLUTION
 
 
