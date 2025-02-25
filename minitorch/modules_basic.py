@@ -151,7 +151,8 @@ class LayerNorm1d(Module):
         self.dim = dim
         self.eps = eps
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError
+        self.weights = Parameter(ones((dim,), backend=backend))
+        self.bias = Parameter(zeros((dim,), backend=backend))
         ### END YOUR SOLUTION
 
     def forward(self, x: Tensor) -> Tensor:
@@ -165,7 +166,9 @@ class LayerNorm1d(Module):
         Output: 
             output - Tensor of shape (bs, dim)
         """
-        batch, dim = x.shape
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError
+        mean = x.mean(1)
+        var = x.var(1)
+        x_normalized = (x - mean) / ((var + self.eps) ** 0.5)
+        return x_normalized * self.weights.value + self.bias.value
         ### END YOUR SOLUTION
