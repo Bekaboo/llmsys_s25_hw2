@@ -265,9 +265,9 @@ def softmax_loss(logits: Tensor, target: Tensor) -> Tensor:
     """
     ### BEGIN YOUR SOLUTION
     batch_size = logits.shape[0]
-    lse = logsumexp(logits, dim=1).view(batch_size)
+    lse = logsumexp(logits, dim=1)
     one_hot_target = one_hot(target, logits.shape[1])
     logits_target = (logits * one_hot_target).sum(dim=1)
     loss = lse - logits_target
-    return loss
+    return loss.view(batch_size)
     ### END YOUR SOLUTION
