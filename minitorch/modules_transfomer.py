@@ -147,8 +147,6 @@ class MultiHeadAttention(Module):
 
         # print(f"result.shape (init): {result.shape}")
 
-        result = result.view(batch_size, queries_len, self.n_embd)
-        # print(f"result.shape (after view): {result.shape}")
         result = self.out_projection(result.view(batch_size * queries_len, self.n_embd))
         # print(f"result.shape (after projection): {result.shape}")
         # print(f"result.shape: {result.shape}")
