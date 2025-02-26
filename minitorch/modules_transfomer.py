@@ -127,14 +127,24 @@ class MultiHeadAttention(Module):
             mask = self.create_causal_mask(queries_len)
             att = att + mask
 
-        att_weights = softmax(att, dim=-1)
+        print(f"att: {att}")
+        print(f"att.shape: {att.shape}")
+        att_weights = softmax(att, dim=3)
+        print(f"att_weights (after softmax): {att_weights}")
         att_weights = self.dropout(att_weights)
+        print(f"v: {v}")
+        print(f"att_weights: {att_weights}")
 
         result = att_weights @ v
+        print(f"result: {result}")
         result = result.view(batch_size, queries_len, self.n_embd)
         result = self.out_projection(result)
+
+
         return result
         ### END YOUR SOLUTION
+
+        return result
 
     def forward(self, x):
         """Computes MultiHeadAttention with causal masking if needed.
