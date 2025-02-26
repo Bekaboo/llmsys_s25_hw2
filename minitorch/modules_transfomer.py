@@ -131,7 +131,7 @@ class MultiHeadAttention(Module):
         att_weights = self.dropout(att_weights)
 
         result = att_weights @ v
-        result = result.transpose(1, 2).view(batch_size, queries_len, self.n_embd)
+        result = result.view(batch_size, queries_len, self.n_embd)
         result = self.out_projection(result)
         return result
         ### END YOUR SOLUTION
