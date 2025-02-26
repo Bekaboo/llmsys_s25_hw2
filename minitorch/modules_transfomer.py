@@ -73,21 +73,35 @@ class MultiHeadAttention(Module):
         batch_size, seq_len, n_embd = x.shape
         ### BEGIN YOUR SOLUTION
 
+        # print("----------------------------------------")
+        # print(f"batch_size: {batch_size}")
+        # print(f"self.n_head: {self.n_head}")
+        # print(f"self.attn_hidden_dim: {self.attn_hidden_dim}")
+        # print(f"seq_len: {seq_len}")
+
         # Project to Q, K, V
-        q = self.q_projection(x)
-        k = self.k_projection(x)
-        v = self.v_projection(x)
+        x_2d = x.view(batch_size * seq_len, n_embd)
+        q = self.q_projection(x_2d)
+        k = self.k_projection(x_2d)
+        v = self.v_projection(x_2d)
+
+        # print(f"q.shape (init): {q.shape}")
+        # print(f"k.shape (init): {k.shape}")
+        # print(f"v.shape (init): {v.shape}")
 
         # (batch_size, seq_len, n_embd) -> (batch_size, num_heads, seq_len, attn_hidden_dim)
         q = q.view(batch_size, seq_len, self.n_head, self.attn_hidden_dim)
         q = q.permute(0, 2, 1, 3)
 
         k = k.view(batch_size, seq_len, self.n_head, self.attn_hidden_dim)
-        # For k, we need to end up with (batch_size, num_heads, attn_hidden_dim, seq_len)
-        kT = k.permute(0, 2, 3, 1)
+        kT = k.permute(0, 2, 3, 1)  # (batch_size, num_heads, attn_hidden_dim, seq_len)
 
         v = v.view(batch_size, seq_len, self.n_head, self.attn_hidden_dim)
         v = v.permute(0, 2, 1, 3)
+
+        # print(f"q.shape: {q.shape}")
+        # print(f"kT.shape: {kT.shape}")
+        # print(f"v.shape: {v.shape}")
 
         ### END YOUR SOLUTION
         return q, kT, v
@@ -116,6 +130,9 @@ class MultiHeadAttention(Module):
         ### BEGIN YOUR SOLUTION
         att = (q @ kT) / (self.attn_hidden_dim**0.5)
 
+        # print("----------------------------------------")
+        # print(f"att.shape: {att.shape}")
+
         if self.causal:
             mask = self.create_causal_mask(queries_len)
             att = att + mask
@@ -123,14 +140,21 @@ class MultiHeadAttention(Module):
         att_weights = softmax(att, dim=3)
         att_weights = self.dropout(att_weights)
 
+        # print(f"att_weights.shape: {att_weights.shape}")
+        # print(f"v.shape: {v.shape}")
+
         result = att_weights @ v
+
+        # print(f"result.shape (init): {result.shape}")
+
         result = result.view(batch_size, queries_len, self.n_embd)
-        result = self.out_projection(result)
+        # print(f"result.shape (after view): {result.shape}")
+        result = self.out_projection(result.view(batch_size * queries_len, self.n_embd))
+        # print(f"result.shape (after projection): {result.shape}")
+        # print(f"result.shape: {result.shape}")
 
-        return result
+        return result.view(batch_size, queries_len, self.n_embd)
         ### END YOUR SOLUTION
-
-        return result
 
     def forward(self, x):
         """Computes MultiHeadAttention with causal masking if needed.
