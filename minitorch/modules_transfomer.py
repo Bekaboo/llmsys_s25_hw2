@@ -72,22 +72,23 @@ class MultiHeadAttention(Module):
         """
         batch_size, seq_len, n_embd = x.shape
         ### BEGIN YOUR SOLUTION
+
+        # Project to Q, K, V
         q = self.q_projection(x)
-        q = q.view(batch_size, seq_len, self.n_head, self.attn_hidden_dim).transpose(
-            1, 2
-        )
-
         k = self.k_projection(x)
-        kT = k.view(batch_size, seq_len, self.n_head, self.attn_hidden_dim).permute(
-            0, 2, 3, 1
-        )
-
         v = self.v_projection(x)
-        v = v.view(batch_size, seq_len, self.n_head, self.attn_hidden_dim).transpose(
-            1, 2
-        )
 
-        return q, kT, v
+        # (batch_size, seq_len, n_embd) -> (batch_size, num_heads, seq_len, attn_hidden_dim)
+        q = q.view(batch_size, seq_len, self.n_head, self.attn_hidden_dim)
+        q = q.permute(0, 2, 1, 3)
+
+        k = k.view(batch_size, seq_len, self.n_head, self.attn_hidden_dim)
+        # For k, we need to end up with (batch_size, num_heads, attn_hidden_dim, seq_len)
+        kT = k.permute(0, 2, 3, 1)
+
+        v = v.view(batch_size, seq_len, self.n_head, self.attn_hidden_dim)
+        v = v.permute(0, 2, 1, 3)
+
         ### END YOUR SOLUTION
         return q, kT, v
 
@@ -109,6 +110,13 @@ class MultiHeadAttention(Module):
         batch_size, num_head, queries_len, q_dim = q.shape
         _, _, k_dim, _ = kT.shape
         _, _, _, v_dim = v.shape
+        print("----------------------------------------")
+        print(f"q.shape: {q.shape}")
+        print(f"kT.shape: {kT.shape}")
+        print(f"v.shape: {v.shape}")
+        print(f"q_dim: {q_dim}")
+        print(f"k_dim: {k_dim}")
+        print(f"v_dim: {v_dim}")
         assert q_dim == k_dim == v_dim
         result = None
 
@@ -123,7 +131,7 @@ class MultiHeadAttention(Module):
         att_weights = self.dropout(att_weights)
 
         result = att_weights @ v
-        result = result.transpose(1, 2).reshape(batch_size, queries_len, self.n_embd)
+        result = result.transpose(1, 2).view(batch_size, queries_len, self.n_embd)
         result = self.out_projection(result)
         return result
         ### END YOUR SOLUTION
