@@ -147,9 +147,12 @@ class MultiHeadAttention(Module):
 
         # print(f"result.shape (init): {result.shape}")
 
+        # (batch_size, num_head, seq_len, attn_hidden_dim) -> (batch_size, seq_len, num_head, attn_hidden_dim)
+        result = result.permute(0, 2, 1, 3)
+        # n_embd = seq_len * attn_hidden_dim
+        result = result.contiguous().view(batch_size, queries_len, self.n_embd)
+
         result = self.out_projection(result.view(batch_size * queries_len, self.n_embd))
-        # print(f"result.shape (after projection): {result.shape}")
-        # print(f"result.shape: {result.shape}")
 
         return result.view(batch_size, queries_len, self.n_embd)
         ### END YOUR SOLUTION
