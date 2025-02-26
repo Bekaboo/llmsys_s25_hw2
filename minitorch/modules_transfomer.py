@@ -127,7 +127,6 @@ class MultiHeadAttention(Module):
         result = result.view(batch_size, queries_len, self.n_embd)
         result = self.out_projection(result)
 
-
         return result
         ### END YOUR SOLUTION
 
@@ -223,11 +222,18 @@ class TransformerLayer(Module):
             ff : FeedForward layer
         """
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError
-        # self.ln_1
-        # self.ln_2
-        # self.attention
-        # self.ff
+        self.ln_1 = LayerNorm1d(n_embd, eps=ln_eps, backend=backend)
+        self.ln_2 = LayerNorm1d(n_embd, eps=ln_eps, backend=backend)
+        self.attention = MultiHeadAttention(
+            n_embd, n_head, p_dropout=p_dropout, causal=True, bias=bias, backend=backend
+        )
+        self.ff = FeedForward(
+            n_embd,
+            middle_dim=4 * n_embd,
+            p_dropout=p_dropout,
+            bias=bias,
+            backend=backend,
+        )
         ### END YOUR SOLUTION
 
     def forward(self, x):
@@ -239,9 +245,17 @@ class TransformerLayer(Module):
         Output:
             output: Hidden state after the Transformer Layer with shape (batch_size, seq_len, n_embd)
         """
-        batch_size, seq_len, n_embd = x.shape
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError
+        x_norm = self.ln_1(x)
+        attn_out = self.attention(x_norm)
+        x = x + attn_out  # Residual connection
+
+        # Pre-LayerNorm for FFN
+        x_norm = self.ln_2(x)
+        ffn_out = self.ff(x_norm)
+        x = x + ffn_out  # Residual connection
+
+        return x
         ### END YOUR SOLUTION
 
 
@@ -284,16 +298,28 @@ class DecoderLM(Module):
         self.n_embd = n_embd
         self.n_vocab = n_vocab
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError
-        # self.token_embeddings    =
-        # self.position_embeddings =
-        # self.t_layer_1           =
-        # self.t_layer_2           =
-        # self.t_layer_3           =
-        # self.t_layer_4           =
-        # self.dropout             =
-        # self.ln                  =
-        # self.lm_head             =
+        # Embedding layers
+        self.token_embeddings = Embedding(n_vocab, n_embd, backend=backend)
+        self.position_embeddings = Embedding(n_positions, n_embd, backend=backend)
+
+        # Transformer layers
+        self.t_layer_1 = TransformerLayer(
+            n_embd, n_head, p_dropout, ln_eps, bias, backend
+        )
+        self.t_layer_2 = TransformerLayer(
+            n_embd, n_head, p_dropout, ln_eps, bias, backend
+        )
+        self.t_layer_3 = TransformerLayer(
+            n_embd, n_head, p_dropout, ln_eps, bias, backend
+        )
+        self.t_layer_4 = TransformerLayer(
+            n_embd, n_head, p_dropout, ln_eps, bias, backend
+        )
+
+        # Additional layers
+        self.dropout = Dropout(p_dropout)
+        self.ln = LayerNorm1d(n_embd, eps=ln_eps, backend=backend)
+        self.lm_head = Linear(n_embd, n_vocab, bias=bias, backend=backend)
         ### END YOUR SOLUTION
 
     def forward(self, idx):
@@ -308,15 +334,28 @@ class DecoderLM(Module):
         batch_size, seq_len = idx.shape
 
         ### BEGIN SOLUTION
-        raise NotImplementedError
-        # Get Token Embeddings of shape (batch_size, seq_len, n_embd)
-        """
-        Create Positional Embeddings of shape (1, seq_len, n_embd)
-         - First create a tensor of position ids [0, 1, 2, ..., seq_len - 1] of shape (1, seq_len)
-         - Pass the position ids through your positional embedding layer
-         - Ensure shape is (1, seq_len, n_embd)
-        """
-        # Pass through each transformer Layer
-        # Final LayerNorm
-        # Get correct shape
+        # Token embeddings
+        token_embeds = self.token_embeddings(idx)  # (B, T, C)
+
+        # Positional embeddings
+        pos_ids = tensor_from_numpy(
+            np.arange(seq_len).reshape(1, -1), dtype=np.int32, backend=self.backend
+        )
+        pos_embeds = self.position_embeddings(pos_ids)  # (1, T, C)
+
+        # Combine embeddings
+        x = token_embeds + pos_embeds  # (B, T, C)
+        x = self.dropout(x)
+
+        # Pass through transformer layers
+        x = self.t_layer_1(x)
+        x = self.t_layer_2(x)
+        x = self.t_layer_3(x)
+        x = self.t_layer_4(x)
+
+        # Final LayerNorm and projection
+        x = self.ln(x)
+        logits = self.lm_head(x)
+
+        return logits
         ### END SOLUTION
