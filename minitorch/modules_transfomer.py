@@ -136,8 +136,6 @@ class MultiHeadAttention(Module):
         return result
         ### END YOUR SOLUTION
 
-        return result
-
     def forward(self, x):
         """Computes MultiHeadAttention with causal masking if needed.
 
