@@ -1,26 +1,26 @@
-import numpy as np
-from .tensor import tensor, tensor_from_numpy
-from .module import Module, Parameter
-from .modules_basic import (
-    Embedding,
-    Dropout,
-    LayerNorm1d,
-    Linear
-)
-from .tensor_ops import TensorBackend
-from .nn import (
-    max,
-    softmax,
-    dropout,
-    GELU,
-)
 from typing import Any, Dict, Optional, Sequence, Tuple
+
+import numpy as np
+
+from .module import Module, Parameter
+from .modules_basic import Dropout, Embedding, LayerNorm1d, Linear
+from .nn import GELU, dropout, max, softmax
+from .tensor import tensor, tensor_from_numpy
+from .tensor_ops import TensorBackend
 
 datatype = np.float32
 
 
 class MultiHeadAttention(Module):
-    def __init__(self, n_embd: int, n_head: int, causal: bool=True, p_dropout: float=0.1, bias: bool=True, backend: TensorBackend=None):
+    def __init__(
+        self,
+        n_embd: int,
+        n_head: int,
+        causal: bool = True,
+        p_dropout: float = 0.1,
+        bias: bool = True,
+        backend: TensorBackend = None,
+    ):
         super().__init__()
         """Implements Multi-Head Attention as described in "Attention Is All You Need"
 
@@ -38,29 +38,30 @@ class MultiHeadAttention(Module):
             out_projection : Linear output projection layer
             dropout        : Dropout layer
         """
-        self.backend   = backend
-        self.n_embd    = n_embd 
-        self.n_head    = n_head
-        self.causal    = causal
+        self.backend = backend
+        self.n_embd = n_embd
+        self.n_head = n_head
+        self.causal = causal
         self.attn_hidden_dim = n_embd // n_head
 
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError
-        # self.q_projection = 
-        # self.k_projection = 
-        # self.v_projection = 
-        # self.out_projection = 
-        # self.dropout = 
+        self.q_projection = Linear(n_embd, n_embd, bias=bias, backend=backend)
+        self.k_projection = Linear(n_embd, n_embd, bias=bias, backend=backend)
+        self.v_projection = Linear(n_embd, n_embd, bias=bias, backend=backend)
+        self.out_projection = Linear(n_embd, n_embd, bias=bias, backend=backend)
+        self.dropout = Dropout(p_dropout)
         ### END YOUR SOLUTION
 
     def create_causal_mask(self, seq_len):
         # Returns a 1x1xTxt triangular causal mask for Q @ K^T (You will implicitly broadcast it to BxHxTxT)
-        mask = -np.finfo(datatype).max * np.triu(np.ones((1, 1, seq_len, seq_len), dtype=datatype), 1)
+        mask = -np.finfo(datatype).max * np.triu(
+            np.ones((1, 1, seq_len, seq_len), dtype=datatype), 1
+        )
         return tensor_from_numpy(mask, backend=self.backend)
 
     def project_to_query_key_value(self, x):
         """Project x to Q, transpose of K, V for self attention
-        
+
         Args:
             x: embeddings or hidden states (batch_size x seq_len x n_embd)
 
@@ -71,15 +72,30 @@ class MultiHeadAttention(Module):
         """
         batch_size, seq_len, n_embd = x.shape
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError
+        q = self.q_projection(x)
+        q = q.view(batch_size, seq_len, self.n_head, self.attn_hidden_dim).transpose(
+            1, 2
+        )
+
+        k = self.k_projection(x)
+        kT = k.view(batch_size, seq_len, self.n_head, self.attn_hidden_dim).permute(
+            0, 2, 3, 1
+        )
+
+        v = self.v_projection(x)
+        v = v.view(batch_size, seq_len, self.n_head, self.attn_hidden_dim).transpose(
+            1, 2
+        )
+
+        return q, kT, v
         ### END YOUR SOLUTION
         return q, kT, v
-    
+
     def self_attention(self, q, kT, v):
         """Given q, kT, and v of sizes defined above, return the result of MultiHeadAttention as described in the writeup
         softmax((q @ kT) / sqrt(attn_hidden_dim)) @ V.
         NOTE: We have added support for Batch Matrix Multiplication with 4 dimensions.
-        This means given tensors A of shape (a, b, m, n) and B of shape (a, b, n, p), 
+        This means given tensors A of shape (a, b, m, n) and B of shape (a, b, n, p),
         A @ B will be of the shape (a, b, m, p). Take a moment to consider why we need it.
 
         Args:
@@ -95,15 +111,27 @@ class MultiHeadAttention(Module):
         _, _, _, v_dim = v.shape
         assert q_dim == k_dim == v_dim
         result = None
-        
+
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError
+        att = (q @ kT) / (self.attn_hidden_dim**0.5)
+
+        if self.causal:
+            mask = self.create_causal_mask(queries_len)
+            att = att + mask
+
+        att_weights = softmax(att, dim=-1)
+        att_weights = self.dropout(att_weights)
+
+        result = att_weights @ v
+        result = result.transpose(1, 2).reshape(batch_size, queries_len, self.n_embd)
+        result = self.out_projection(result)
+        return result
         ### END YOUR SOLUTION
 
         return result
 
     def forward(self, x):
-        """Computes MultiHeadAttention with causal masking if needed. 
+        """Computes MultiHeadAttention with causal masking if needed.
 
         Args:
             x : Tensor of shape (batch_size, seq_len, embedding_dim)
@@ -111,14 +139,21 @@ class MultiHeadAttention(Module):
         Returns:
             output : Tensor of shape (batch_size, seq_len, embedding_dim)
         """
-        batch_size, seq_len, n_embd = x.shape
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError
+        q, kT, v = self.project_to_query_key_value(x)
+        return self.self_attention(q, kT, v)
         ### END YOUR SOLUTION
 
 
 class FeedForward(Module):
-    def __init__(self, n_embd: int, middle_dim: int=256, p_dropout: float=0.1, bias: bool=True, backend: TensorBackend=None):
+    def __init__(
+        self,
+        n_embd: int,
+        middle_dim: int = 256,
+        p_dropout: float = 0.1,
+        bias: bool = True,
+        backend: TensorBackend = None,
+    ):
         super().__init__()
         """The Feed Forward Module.
         
@@ -133,10 +168,10 @@ class FeedForward(Module):
             linear_out : second linear layer
             dropout    : dropout layer
         """
-        ### BEGIN YOUR SOLUTION 
-        self.linear_in  = Linear(n_embd, middle_dim, bias=bias, backend=backend)
+        ### BEGIN YOUR SOLUTION
+        self.linear_in = Linear(n_embd, middle_dim, bias=bias, backend=backend)
         self.linear_out = Linear(middle_dim, n_embd, bias=bias, backend=backend)
-        self.dropout    = Dropout(p_dropout)
+        self.dropout = Dropout(p_dropout)
         ### END YOUR SOLUTION
 
     def forward(self, x):
@@ -156,10 +191,18 @@ class FeedForward(Module):
         ### END YOUR SOLUTION
 
         return x
-    
+
 
 class TransformerLayer(Module):
-    def __init__(self, n_embd: int, n_head: int, p_dropout: float=0.1, ln_eps: float=1e-5, bias: bool=True, backend: TensorBackend=None):
+    def __init__(
+        self,
+        n_embd: int,
+        n_head: int,
+        p_dropout: float = 0.1,
+        ln_eps: float = 1e-5,
+        bias: bool = True,
+        backend: TensorBackend = None,
+    ):
         super().__init__()
         """A Transformer Layer in a Pre-LN Transformer.
 
@@ -186,11 +229,11 @@ class TransformerLayer(Module):
 
     def forward(self, x):
         """The forward function of a Transformer Layer for a Pre-LN Transformer.
-        
-        Args: 
+
+        Args:
             x : Hidden state from previous layers with shape (batch_size, seq_len, n_embd)
-        
-        Output: 
+
+        Output:
             output: Hidden state after the Transformer Layer with shape (batch_size, seq_len, n_embd)
         """
         batch_size, seq_len, n_embd = x.shape
@@ -201,15 +244,15 @@ class TransformerLayer(Module):
 
 class DecoderLM(Module):
     def __init__(
-        self, 
+        self,
         n_vocab: int,
         n_embd: int,
         n_head: int,
         n_positions: int,
-        p_dropout: float=0.1,
-        ln_eps: float=1e-5, 
-        bias: bool=True,
-        backend: TensorBackend=None
+        p_dropout: float = 0.1,
+        ln_eps: float = 1e-5,
+        bias: bool = True,
+        backend: TensorBackend = None,
     ):
         super().__init__()
         """A Full Decoder-only Pre-LN Transformer with 4 Transformer Layers.
@@ -234,31 +277,31 @@ class DecoderLM(Module):
             ln : LayerNorm layer after last transformer layer.
             lm_head : Linear layer for projection from (*, n_embd) to (*, n_vocab)
         """
-        self.backend             = backend
-        self.n_embd              = n_embd
-        self.n_vocab             = n_vocab
+        self.backend = backend
+        self.n_embd = n_embd
+        self.n_vocab = n_vocab
         ### BEGIN YOUR SOLUTION
         raise NotImplementedError
-        # self.token_embeddings    = 
-        # self.position_embeddings = 
-        # self.t_layer_1           = 
-        # self.t_layer_2           = 
-        # self.t_layer_3           = 
-        # self.t_layer_4           = 
-        # self.dropout             = 
-        # self.ln                  = 
-        # self.lm_head             = 
+        # self.token_embeddings    =
+        # self.position_embeddings =
+        # self.t_layer_1           =
+        # self.t_layer_2           =
+        # self.t_layer_3           =
+        # self.t_layer_4           =
+        # self.dropout             =
+        # self.ln                  =
+        # self.lm_head             =
         ### END YOUR SOLUTION
-    
+
     def forward(self, idx):
         """A Forward pass of a Decoder-only Transformer Language model.
-        Args: 
+        Args:
             idx: input of shape (batch_size, seq_len)
-        
-        Returns: 
+
+        Returns:
             logits: logits of shape (batch_size, seq_len, n_vocab)
         """
-        
+
         batch_size, seq_len = idx.shape
 
         ### BEGIN SOLUTION
