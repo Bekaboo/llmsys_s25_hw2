@@ -213,8 +213,18 @@ class FeedForward(Module):
         batch_size, seq_len, n_embd = x.shape
 
         ### BEGIN YOUR SOLUTION
-        x = GELU(self.linear_in(x.view(batch_size * seq_len, n_embd)))
-        x = self.dropout(self.linear_out(x)).view(batch_size, seq_len, n_embd)
+        x_reshaped = x.view(batch_size * seq_len, n_embd)
+
+        # Apply first linear layer with GELU activation
+        x_middle = self.linear_in(x_reshaped)
+        x_middle = GELU(x_middle)
+
+        # Apply dropout and second linear layer
+        x_middle = self.dropout(x_middle)
+        x_final = self.linear_out(x_middle)
+
+        # Reshape back to 3D
+        return x_final.view(batch_size, seq_len, n_embd)
         ### END YOUR SOLUTION
 
         return x
