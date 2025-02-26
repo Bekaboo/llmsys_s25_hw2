@@ -110,13 +110,6 @@ class MultiHeadAttention(Module):
         batch_size, num_head, queries_len, q_dim = q.shape
         _, _, k_dim, _ = kT.shape
         _, _, _, v_dim = v.shape
-        print("----------------------------------------")
-        print(f"q.shape: {q.shape}")
-        print(f"kT.shape: {kT.shape}")
-        print(f"v.shape: {v.shape}")
-        print(f"q_dim: {q_dim}")
-        print(f"k_dim: {k_dim}")
-        print(f"v_dim: {v_dim}")
         assert q_dim == k_dim == v_dim
         result = None
 
@@ -127,16 +120,10 @@ class MultiHeadAttention(Module):
             mask = self.create_causal_mask(queries_len)
             att = att + mask
 
-        print(f"att: {att}")
-        print(f"att.shape: {att.shape}")
         att_weights = softmax(att, dim=3)
-        print(f"att_weights (after softmax): {att_weights}")
         att_weights = self.dropout(att_weights)
-        print(f"v: {v}")
-        print(f"att_weights: {att_weights}")
 
         result = att_weights @ v
-        print(f"result: {result}")
         result = result.view(batch_size, queries_len, self.n_embd)
         result = self.out_projection(result)
 
