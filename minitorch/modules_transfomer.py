@@ -271,16 +271,17 @@ class TransformerLayer(Module):
             output: Hidden state after the Transformer Layer with shape (batch_size, seq_len, n_embd)
         """
         ### BEGIN YOUR SOLUTION
-        x_norm = self.ln_1(x)
-        attn_out = self.attention(x_norm)
+        batch_size, seq_len, n_embd = x.shape
+        x_norm = self.ln_1(x.view(batch_size * seq_len, n_embd))
+        attn_out = self.attention(x_norm.view(batch_size, seq_len, n_embd))
         x = x + attn_out  # Residual connection
 
         # Pre-LayerNorm for FFN
-        x_norm = self.ln_2(x)
-        ffn_out = self.ff(x_norm)
+        x_norm = self.ln_2(x.view(batch_size * seq_len, n_embd))
+        ffn_out = self.ff(x_norm.view(batch_size, seq_len, n_embd))
         x = x + ffn_out  # Residual connection
 
-        return x
+        return x.view(batch_size, seq_len, n_embd)
         ### END YOUR SOLUTION
 
 
@@ -363,9 +364,7 @@ class DecoderLM(Module):
         token_embeds = self.token_embeddings(idx)  # (B, T, C)
 
         # Positional embeddings
-        pos_ids = tensor_from_numpy(
-            np.arange(seq_len).reshape(1, -1), dtype=np.int32, backend=self.backend
-        )
+        pos_ids = tensor_from_numpy(np.arange(seq_len).reshape(1, -1), backend=self.backend)
         pos_embeds = self.position_embeddings(pos_ids)  # (1, T, C)
 
         # Combine embeddings
@@ -379,8 +378,9 @@ class DecoderLM(Module):
         x = self.t_layer_4(x)
 
         # Final LayerNorm and projection
-        x = self.ln(x)
-        logits = self.lm_head(x)
+        batch_size, seq_len, n_embd = x.shape
+        x = self.ln(x.view(batch_size * seq_len, n_embd))
+        logits = self.lm_head(x).view(batch_size, seq_len, self.n_vocab)
 
         return logits
         ### END SOLUTION
